@@ -8,65 +8,70 @@ from data import ErrorMessages
 @allure.feature('Создание пользователя')
 class TestCreateUser:
 
-    @allure.title('При создании уникального пользователя возвращается код 200')
-    def test_create_unique_user_returns_200(self, created_user_response):
-        response, _ = created_user_response
-
-        assert response.status_code == 200
-
-    @allure.title('При создании уникального пользователя success равен true')
-    def test_create_unique_user_returns_success_true(self, created_user_response):
-        response, _ = created_user_response
-
-        assert response.json()['success'] is True
-
-    @allure.title('При создании уникального пользователя в ответе есть accessToken')
-    def test_create_unique_user_returns_access_token(self, created_user_response):
-        response, _ = created_user_response
-
-        assert 'accessToken' in response.json()
-
-    @allure.title('При повторном создании пользователя возвращается код 403')
-    def test_create_existing_user_returns_403(self, created_user):
-        user_data, _ = created_user
-
-        response = UserMethods.create_user(user_data)
-
-        assert response.status_code == 403
-
-    @allure.title('При повторном создании пользователя возвращается ошибка User already exists')
-    def test_create_existing_user_returns_user_already_exists_message(
+    @allure.title('Создание уникального пользователя возвращает код 200 и success true')
+    def test_create_unique_user_returns_200_and_success_true(
             self,
-            created_user
+            user_data,
+            user_tokens_for_delete
     ):
-        user_data, _ = created_user
+        response = UserMethods.create_user(user_data)
+        response_body = response.json()
+        user_tokens_for_delete.append(response_body.get('accessToken'))
+
+        assert (
+            response.status_code,
+            response_body['success']
+        ) == (200, True)
+
+    @allure.title('Создание уже зарегистрированного пользователя возвращает код 403 и текст ошибки')
+    def test_create_existing_user_returns_403_and_error_message(
+            self,
+            user_data,
+            user_tokens_for_delete
+    ):
+        first_response = UserMethods.create_user(user_data)
+        first_response_body = first_response.json()
+        user_tokens_for_delete.append(first_response_body.get('accessToken'))
 
         response = UserMethods.create_user(user_data)
+        response_body = response.json()
 
-        assert response.json()['message'] == ErrorMessages.USER_ALREADY_EXISTS
+        assert (
+            response.status_code,
+            response_body['success'],
+            response_body['message']
+        ) == (
+            403,
+            False,
+            ErrorMessages.USER_ALREADY_EXISTS
+        )
 
-    @allure.title('При создании пользователя без обязательного поля возвращается код 403')
-    @pytest.mark.parametrize('field', ['email', 'password', 'name'])
-    def test_create_user_without_required_field_returns_403(
+    @allure.title('Создание пользователя без обязательного поля возвращает код 403 и текст ошибки')
+    @pytest.mark.parametrize(
+        'field',
+        [
+            'email',
+            'password',
+            'name',
+        ]
+    )
+    def test_create_user_without_required_field_returns_403_and_error_message(
             self,
             user_data,
             field
     ):
-        user_data.pop(field)
+        payload = user_data.copy()
+        payload.pop(field)
 
-        response = UserMethods.create_user(user_data)
+        response = UserMethods.create_user(payload)
+        response_body = response.json()
 
-        assert response.status_code == 403
-
-    @allure.title('При создании пользователя без обязательного поля возвращается ошибка required fields')
-    @pytest.mark.parametrize('field', ['email', 'password', 'name'])
-    def test_create_user_without_required_field_returns_required_fields_message(
-            self,
-            user_data,
-            field
-    ):
-        user_data.pop(field)
-
-        response = UserMethods.create_user(user_data)
-
-        assert response.json()['message'] == ErrorMessages.REQUIRED_FIELDS
+        assert (
+            response.status_code,
+            response_body['success'],
+            response_body['message']
+        ) == (
+            403,
+            False,
+            ErrorMessages.REQUIRED_FIELDS
+        )

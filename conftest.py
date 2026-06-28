@@ -3,8 +3,7 @@ import pytest
 from api_methods import IngredientMethods, UserMethods
 from helpers import (
     generate_unique_user_data,
-    get_auth_headers,
-    get_user_login_data
+    get_auth_headers
 )
 
 
@@ -36,13 +35,6 @@ def created_user_response(user_data):
 
 
 @pytest.fixture
-def login_response(created_user):
-    user_data, _ = created_user
-
-    return UserMethods.login_user(get_user_login_data(user_data))
-
-
-@pytest.fixture
 def ingredient_ids():
     response = IngredientMethods.get_ingredients()
     ingredients = response.json()['data']
@@ -65,3 +57,14 @@ def auth_headers(created_user):
     _, access_token = created_user
 
     return get_auth_headers(access_token)
+
+
+@pytest.fixture
+def user_tokens_for_delete():
+    tokens = []
+
+    yield tokens
+
+    for token in tokens:
+        if token:
+            UserMethods.delete_user(get_auth_headers(token))

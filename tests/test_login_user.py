@@ -2,39 +2,42 @@ import allure
 
 from api_methods import UserMethods
 from data import ErrorMessages, InvalidData
+from helpers import get_user_login_data
 
 
 @allure.feature('Логин пользователя')
 class TestLoginUser:
 
-    @allure.title('При логине существующего пользователя возвращается код 200')
-    def test_login_existing_user_returns_200(self, login_response):
-        assert login_response.status_code == 200
+    @allure.title('Логин существующего пользователя возвращает код 200, success true и accessToken')
+    def test_login_existing_user_returns_200_success_true_and_access_token(
+            self,
+            created_user
+    ):
+        user_data, _ = created_user
 
-    @allure.title('При логине существующего пользователя success равен true')
-    def test_login_existing_user_returns_success_true(self, login_response):
-        assert login_response.json()['success'] is True
+        response = UserMethods.login_user(get_user_login_data(user_data))
+        response_body = response.json()
 
-    @allure.title('При логине существующего пользователя в ответе есть accessToken')
-    def test_login_existing_user_returns_access_token(self, login_response):
-        assert 'accessToken' in login_response.json()
+        assert (
+            response.status_code,
+            response_body['success'],
+            'accessToken' in response_body
+        ) == (200, True, True)
 
-    @allure.title('При логине с неверными данными возвращается код 401')
-    def test_login_with_invalid_credentials_returns_401(self):
+    @allure.title('Логин с неверными данными возвращает код 401 и текст ошибки')
+    def test_login_with_invalid_credentials_returns_401_and_error_message(self):
         response = UserMethods.login_user({
             'email': InvalidData.WRONG_EMAIL,
             'password': InvalidData.WRONG_PASSWORD
         })
+        response_body = response.json()
 
-        assert response.status_code == 401
-
-    @allure.title('При логине с неверными данными возвращается ошибка incorrect')
-    def test_login_with_invalid_credentials_returns_error_message(self):
-        response = UserMethods.login_user({
-            'email': InvalidData.WRONG_EMAIL,
-            'password': InvalidData.WRONG_PASSWORD
-        })
-
-        assert response.json()['message'] == (
+        assert (
+            response.status_code,
+            response_body['success'],
+            response_body['message']
+        ) == (
+            401,
+            False,
             ErrorMessages.INCORRECT_EMAIL_OR_PASSWORD
         )
